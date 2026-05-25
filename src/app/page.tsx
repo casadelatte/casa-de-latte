@@ -9,6 +9,7 @@ import CasaLogo from "@/components/CasaLogo";
 import LoadingScreen from "@/components/LoadingScreen";
 import FooterCredit from "@/components/FooterCredit";
 import FooterContact from "@/components/FooterContact";
+import CreatorsSection from "@/components/CreatorsSection";
 import {
   isOrderingOpen,
   isCategoryUnavailableLateNight,
@@ -542,6 +543,8 @@ function CustomerPortal() {
         setCartItems={setCartItems}
         orderingOpen={orderingOpen}
       />
+
+      <CreatorsSection />
 
       {/* 5. FOOTER */}
       <footer className="relative border-t border-white/5 py-12 px-6 bg-black/40 z-10">
