@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="96" fill="#0c0a09"/>
+  <circle cx="256" cy="200" r="72" fill="#c7a17a" opacity="0.35"/>
+  <path d="M176 320c0-44 36-80 80-80s80 36 80 80v24H176v-24z" fill="#c7a17a"/>
+  <path d="M200 128c24-32 88-32 112 0" stroke="#dfc7ad" stroke-width="16" stroke-linecap="round" opacity="0.6"/>
+  <text x="256" y="420" text-anchor="middle" font-family="Georgia, serif" font-size="48" font-weight="700" fill="#c7a17a" letter-spacing="6">CDL</text>
+</svg>
