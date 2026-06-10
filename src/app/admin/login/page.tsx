@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import CasaLogo from "@/components/CasaLogo";
 import LoadingScreen from "@/components/LoadingScreen";
 import GlowEffect from "@/components/GlowEffect";
-import FloatingBeans from "@/components/FloatingBeans";
+
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 function AdminLoginInner() {
@@ -49,7 +49,7 @@ function AdminLoginInner() {
 
   return (
     <div className="relative min-h-screen bg-matte-black text-cream-light flex items-center justify-center p-6 overflow-hidden">
-      <FloatingBeans />
+
       <GlowEffect />
 
       {/* Background Ambient */}

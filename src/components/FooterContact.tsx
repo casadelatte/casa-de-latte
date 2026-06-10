@@ -11,7 +11,7 @@ const MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${MAPS_QUERY}`
 
 export default function FooterContact() {
   return (
-    <div className="max-w-7xl mx-auto w-full grid grid-cols-1 sm:grid-cols-3 gap-8 text-center sm:text-left border-t border-white/5 pt-8 mt-6">
+    <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-8 text-center sm:text-left border-t border-white/5 pt-8 mt-6">
       <div className="space-y-2">
         <div className="flex items-center justify-center sm:justify-start gap-2 text-crema">
           <Phone size={14} />

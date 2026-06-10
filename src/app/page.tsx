@@ -567,26 +567,30 @@ function CustomerPortal() {
 
       {/* 5. FOOTER */}
       <footer className="relative border-t border-white/5 py-12 px-6 bg-black/40 z-10">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
-          <div className="flex items-center gap-3">
-            <CasaLogo size={40} glow />
-            <div className="flex flex-col">
-              <span className="font-brand-title text-lg font-bold tracking-[0.1em] text-crema">
-                Casa De Latte
-              </span>
-              <span className="text-[10px] tracking-[0.2em] text-warm-beige/40 font-bold uppercase mt-0.5">
-                Specialty Coffee
-              </span>
+        <div className="max-w-5xl mx-auto">
+          {/* Logo + copyright row */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+            <div className="flex items-center gap-3">
+              <CasaLogo size={40} glow />
+              <div className="flex flex-col">
+                <span className="font-brand-title text-lg font-bold tracking-[0.1em] text-crema">
+                  Casa De Latte
+                </span>
+                <span className="text-[10px] tracking-[0.2em] text-warm-beige/40 font-bold uppercase mt-0.5">
+                  Specialty Coffee
+                </span>
+              </div>
             </div>
-          </div>
 
-          <p className="text-xs text-warm-beige/40 max-w-md leading-normal">
-            &copy; 2026 Casa De Latte. Premium drive-in specialty coffee — order from your car, pay at delivery.
-          </p>
+            <p className="text-xs text-warm-beige/40 max-w-md leading-normal">
+              &copy; 2026 Casa De Latte. Premium drive-in specialty coffee — order from your car, pay at delivery.
+            </p>
+          </div>
+          <FooterContact />
+          <FooterCredit />
         </div>
-        <FooterContact />
-        <FooterCredit />
       </footer>
+
     </div>
   );
 }
