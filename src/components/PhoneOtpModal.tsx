@@ -43,6 +43,11 @@ export interface PhoneOtpModalProps {
    * Receives the verified phone number in E.164 format.
    */
   onVerified?: (phoneNumber: string) => void;
+  /**
+   * Optional: pre-fills the phone input with this value when the modal opens.
+   * Useful when the caller already has the phone number (e.g. from CartDrawer).
+   */
+  initialPhone?: string;
 }
 
 // ─── OTP digit input ──────────────────────────────────────────────────────────
@@ -137,6 +142,7 @@ export default function PhoneOtpModal({
   isOpen,
   onClose,
   onVerified,
+  initialPhone = "",
 }: PhoneOtpModalProps) {
   const recaptchaContainerId = useId().replace(/:/g, "_") + "_recaptcha";
 
@@ -174,7 +180,11 @@ export default function PhoneOtpModal({
         if (cooldownRef.current) clearInterval(cooldownRef.current);
       }, 350);
       return () => clearTimeout(t);
+    } else {
+      // Pre-fill phone from caller if available
+      if (initialPhone) setPhone(initialPhone);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // Body scroll lock

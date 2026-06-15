@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import type { MenuItem } from "@/types/menu";
-import { X, Trash2, ShoppingBag, ArrowRight, Car, User, Palette, Phone } from "lucide-react";
+import { X, Trash2, ShoppingBag, ArrowRight, Car, User, Palette, Phone, ShieldCheck } from "lucide-react";
 import {
   CLOSED_MESSAGE,
   cartHasRestrictedItems,
@@ -12,6 +12,38 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { resolveMilkPrices, milkSurchargeForChoice, type MilkOptionLabel } from "@/lib/milkPricing";
 import { getVisibleSyrupOptions, resolveSyrupPrices, syrupSurchargeTotal, type SyrupOptionLabel } from "@/lib/syrupPricing";
+import PhoneOtpModal from "@/components/PhoneOtpModal";
+
+// ─── Phone verification session helpers ───────────────────────────────────────
+// Uses sessionStorage so verification persists for the browser tab only.
+
+const SS_VERIFIED_KEY = "casa_phone_verified";
+const SS_PHONE_KEY = "casa_verified_phone";
+
+function isSessionVerified(): boolean {
+  try {
+    return sessionStorage.getItem(SS_VERIFIED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function getSessionPhone(): string {
+  try {
+    return sessionStorage.getItem(SS_PHONE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function setSessionVerified(phone: string): void {
+  try {
+    sessionStorage.setItem(SS_VERIFIED_KEY, "true");
+    sessionStorage.setItem(SS_PHONE_KEY, phone);
+  } catch {
+    // sessionStorage blocked (private browsing etc.) — silently continue
+  }
+}
 
 function parseCustomizationTokens(customizations: string): string[] {
   return String(customizations || "")
@@ -96,6 +128,13 @@ export default function CartDrawer({
   const [carColor, setCarColor] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // ── Phone OTP gate ──────────────────────────────────────────────────────────
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  // Tracks whether the current session has a verified phone
+  const [phoneVerified, setPhoneVerified] = useState(() => isSessionVerified());
+  // Stores the pending order payload while awaiting OTP
+  const pendingOrderRef = useRef<Parameters<typeof submitOrder>[0] | null>(null);
+
   const subtotal = cartItems.reduce((acc, curr) => {
     const visibleExtra = computeVisibleAddOnExtra(curr.item, curr.customizations);
     return acc + (curr.item.price + visibleExtra) * curr.quantity;
@@ -122,6 +161,68 @@ export default function CartDrawer({
     localStorage.setItem("casa_cart", JSON.stringify(updated));
   };
 
+  // ── Core order submission (called after phone is verified) ──────────────────
+  type OrderPayload = {
+    customerName: string;
+    mobile: string;
+    carPlate: string;
+    carColor: string;
+    grandTotal: number;
+  };
+
+  const submitOrder = useCallback(async (payload: OrderPayload) => {
+    setIsSubmitting(true);
+    setErrorMessage("");
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: payload.customerName,
+          mobileNumber: payload.mobile,
+          carPlate: payload.carPlate,
+          carColor: payload.carColor,
+          totalAmount: payload.grandTotal,
+          paymentMode: "DEMO",
+          items: cartItems.map((c) => ({
+            name: c.item.name,
+            price: c.item.price + computeVisibleAddOnExtra(c.item, c.customizations),
+            quantity: c.quantity,
+            customizations: sanitizeCustomizationsForVisibility(c.item, c.customizations),
+            categoryId: c.item.category,
+          })),
+        }),
+      });
+
+      const order = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          (order as { error?: string }).error || "Failed to place order. Please try again."
+        );
+      }
+
+      setCartItems([]);
+      localStorage.removeItem("casa_cart");
+      pendingOrderRef.current = null;
+
+      const confetti = (await import("canvas-confetti")).default;
+      confetti({
+        particleCount: 150,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ["#aaecef", "#c8f3f5", "#2a4a4e", "#e8f7f8"],
+      });
+
+      onClose();
+      router.push(`/status/${order.id}`);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "An error occurred.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [cartItems, onClose, router, setCartItems]);
+
+  // ── Validate fields → OTP gate → submitOrder ─────────────────────────────
   const handleCheckout = async () => {
     const errors: Record<string, string> = {};
     if (!orderingOpen || !isOrderingOpen()) {
@@ -143,55 +244,42 @@ export default function CartDrawer({
     }
     setFieldErrors({});
     setErrorMessage("");
-    setIsSubmitting(true);
 
-    try {
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName: customerName.trim(),
-          mobileNumber: mobile,
-          carPlate: carPlate.trim().toUpperCase(),
-          carColor: carColor.trim(),
-          totalAmount: grandTotal,
-          paymentMode: "DEMO",
-          items: cartItems.map((c) => ({
-            name: c.item.name,
-            price: c.item.price + computeVisibleAddOnExtra(c.item, c.customizations),
-            quantity: c.quantity,
-            customizations: sanitizeCustomizationsForVisibility(c.item, c.customizations),
-            categoryId: c.item.category,
-          })),
-        }),
-      });
+    const payload: OrderPayload = {
+      customerName: customerName.trim(),
+      mobile,
+      carPlate: carPlate.trim().toUpperCase(),
+      carColor: carColor.trim(),
+      grandTotal,
+    };
 
-      const order = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(
-          (order as { error?: string }).error || "Failed to place order. Please try again."
-        );
-      }
-
-      setCartItems([]);
-      localStorage.removeItem("casa_cart");
-
-      const confetti = (await import("canvas-confetti")).default;
-      confetti({
-        particleCount: 150,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ["#aaecef", "#c8f3f5", "#2a4a4e", "#e8f7f8"],
-      });
-
-      onClose();
-      router.push(`/status/${order.id}`);
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "An error occurred.");
-    } finally {
-      setIsSubmitting(false);
+    // ── Phone already verified this session? Skip OTP ──
+    if (phoneVerified) {
+      await submitOrder(payload);
+      return;
     }
+
+    // ── Pre-fill OTP modal phone field with what the customer typed ──
+    // We store the payload and open the modal; submitOrder runs on onVerified.
+    pendingOrderRef.current = payload;
+    // Sync the phone into mobileNumber state so the OTP modal pre-fills correctly.
+    setMobileNumber(mobile);
+    setShowOtpModal(true);
   };
+
+  // ── Called by PhoneOtpModal after successful verification ────────────────
+  const handleOtpVerified = useCallback(async (verifiedPhone: string) => {
+    // Persist in sessionStorage
+    setSessionVerified(verifiedPhone);
+    setPhoneVerified(true);
+    setShowOtpModal(false);
+
+    // Resume the pending order immediately
+    const payload = pendingOrderRef.current;
+    if (payload) {
+      await submitOrder(payload);
+    }
+  }, [submitOrder]);
 
   return (
     <AnimatePresence>
@@ -391,6 +479,21 @@ export default function CartDrawer({
                     </p>
                   )}
 
+                  {/* Phone verified badge */}
+                  {phoneVerified && (
+                    <div className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">
+                      <ShieldCheck size={13} />
+                      <span className="text-[10px] font-bold tracking-wide">
+                        Phone verified
+                        {getSessionPhone() && (
+                          <span className="text-emerald-300/70 ml-1 font-normal">
+                            ({getSessionPhone().replace(/[^0-9]/g, "").slice(-10)})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
                   <button
                     onClick={handleCheckout}
                     disabled={isSubmitting || !orderingOpen}
@@ -404,9 +507,14 @@ export default function CartDrawer({
                         </svg>
                         Sending Order...
                       </span>
-                    ) : (
+                    ) : phoneVerified ? (
                       <>
                         <Car size={16} /> Place Drive-In Order — ₹{grandTotal}
+                        <ArrowRight size={14} />
+                      </>
+                    ) : (
+                      <>
+                        <Phone size={15} /> Verify Phone &amp; Place Order
                         <ArrowRight size={14} />
                       </>
                     )}
@@ -421,6 +529,18 @@ export default function CartDrawer({
           </div>
         </div>
       )}
+
+      {/* ── Phone OTP Modal ─────────────────────────────────────────────── */}
+      <PhoneOtpModal
+        isOpen={showOtpModal}
+        onClose={() => {
+          setShowOtpModal(false);
+          pendingOrderRef.current = null;
+          // Do NOT set an error — user cancelled voluntarily
+        }}
+        onVerified={handleOtpVerified}
+        initialPhone={mobileNumber}
+      />
     </AnimatePresence>
   );
 }
