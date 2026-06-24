@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { PatchOrderSchema } from "@/lib/validation";
+
+/** Maximum accepted request body size in bytes (4 KB — status update only). */
+const MAX_BODY_BYTES = 4 * 1024;
 
 export async function GET(
   request: Request,
@@ -8,7 +12,6 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createSupabaseServerClient();
     const admin = createSupabaseAdminClient();
 
     const [{ data: order, error: orderErr }, { data: items, error: itemsErr }] = await Promise.all([
@@ -35,19 +38,17 @@ export async function GET(
       status: order.status,
       totalAmount: Number(order.total_amount),
       createdAt: order.created_at,
-      items: (items ?? []).map((it: any) => ({
+      items: (items ?? []).map((it: { name: string; price: number; quantity: number; customizations: string }) => ({
         name: it.name,
         price: Number(it.price),
         quantity: it.quantity,
         customizations: it.customizations,
       })),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // Never leak raw DB error messages to the client.
     console.error("Failed to fetch order:", error);
-    return NextResponse.json(
-      { error: "Internal server error: " + error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
 
@@ -56,23 +57,52 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 1. Request size limit (4 KB — status string only)
+    const contentLength = request.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
+      return NextResponse.json({ error: "Request body too large." }, { status: 413 });
+    }
+
+    // 2. Auth check — must be a logged-in admin
     const supabase = await createSupabaseServerClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { id } = await params;
-    const body = await request.json();
-    const { status } = body;
+    // 3. Parse body with size guard
+    let rawBody: string;
+    try {
+      rawBody = await request.text();
+    } catch {
+      return NextResponse.json({ error: "Failed to read request body." }, { status: 400 });
+    }
 
-    if (!status) {
+    if (Buffer.byteLength(rawBody, "utf8") > MAX_BODY_BYTES) {
+      return NextResponse.json({ error: "Request body too large." }, { status: 413 });
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON in request body." }, { status: 400 });
+    }
+
+    // 4. Zod validation — status must be from the allowlist; no extra fields accepted
+    const result = PatchOrderSchema.safeParse(parsed);
+    if (!result.success) {
+      const fieldErrors = result.error.flatten().fieldErrors;
       return NextResponse.json(
-        { error: "Status is required." },
+        { error: "Validation failed.", details: fieldErrors },
         { status: 400 }
       );
     }
 
+    const { id } = await params;
+    const { status } = result.data;
+
+    // 5. Update order status
     const { data: updated, error: updErr } = await supabase
       .from("orders")
       .update({ status })
@@ -97,18 +127,16 @@ export async function PATCH(
       totalAmount: Number(updated.total_amount),
       createdAt: updated.created_at,
       updatedAt: updated.updated_at,
-      items: (items ?? []).map((it: any) => ({
+      items: (items ?? []).map((it: { name: string; price: number; quantity: number; customizations: string }) => ({
         name: it.name,
         price: Number(it.price),
         quantity: it.quantity,
         customizations: it.customizations,
       })),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // Never leak raw DB error messages to the client.
     console.error("Failed to update order status:", error);
-    return NextResponse.json(
-      { error: "Internal server error: " + error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update order status." }, { status: 500 });
   }
 }

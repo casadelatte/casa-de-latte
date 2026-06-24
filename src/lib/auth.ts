@@ -1,16 +1,22 @@
 import { cookies } from "next/headers";
 
-// Demo admin credentials — override with env vars in production
-export const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
-export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "casadelatte2026";
+/**
+ * Legacy cookie-based admin session — superseded by Supabase Auth.
+ * Retained only to prevent import errors; always returns false.
+ *
+ * SECURITY: All credential constants and their hardcoded fallbacks have been
+ * removed. Admin authentication is handled exclusively by Supabase Auth
+ * (see /admin/login and middleware.ts).
+ */
 export const SESSION_COOKIE = "cdl_admin_session";
-export const SESSION_SECRET = process.env.SESSION_SECRET || "casadelatte_secret_key_2026";
 
 export async function getAdminSession(): Promise<boolean> {
   try {
+    // Legacy session check — always returns false now that Supabase Auth is used.
     const cookieStore = await cookies();
     const session = cookieStore.get(SESSION_COOKIE);
-    return session?.value === SESSION_SECRET;
+    // No valid secret to compare against; always deny.
+    return session?.value === undefined ? false : false;
   } catch {
     return false;
   }
