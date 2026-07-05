@@ -18,9 +18,15 @@ export default function FooterCredit() {
         <div className="w-10 h-px bg-crema/15 my-1" />
 
         {/* Name 1 */}
-        <span className="text-[11px] md:text-[12px] tracking-[0.18em] uppercase text-crema/45 font-light transition-colors duration-500 group-hover:text-crema/70">
+        <a
+          href="https://www.linkedin.com/in/arbabansarali/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Arbab Ansar Ali — LinkedIn profile"
+          className="text-[11px] md:text-[12px] tracking-[0.18em] uppercase text-crema/45 font-light transition-colors duration-500 group-hover:text-crema/70 no-underline"
+        >
           Arbab Ansar Ali
-        </span>
+        </a>
 
         {/* Decorative ampersand */}
         <span className="text-[9px] tracking-[0.2em] text-warm-beige/20 font-light italic leading-none my-0.5">
