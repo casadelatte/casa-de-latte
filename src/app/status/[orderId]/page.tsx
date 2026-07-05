@@ -6,7 +6,8 @@ import FloatingBeans from "@/components/FloatingBeans";
 import GlowEffect from "@/components/GlowEffect";
 import CasaLogo from "@/components/CasaLogo";
 import LoadingScreen from "@/components/LoadingScreen";
-import { CheckCircle2, Home, CreditCard, Car } from "lucide-react";
+import { CheckCircle2, Home, CreditCard, Car, Phone } from "lucide-react";
+import { CAFE_PHONE } from "@/lib/constants";
 import { motion } from "framer-motion";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -325,6 +326,49 @@ export default function OrderStatusPage() {
                 </span>
               </div>
             </div>
+
+            {/* Call Cafe Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15, duration: 0.4 }}
+              className="glass rounded-3xl p-6 md:p-8 border border-crema/20 space-y-4"
+            >
+              {/* Header */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-crema/10 border border-crema/20 flex items-center justify-center shrink-0">
+                  <Phone size={18} className="text-crema" />
+                </div>
+                <div>
+                  <h4 className="font-serif text-sm font-bold text-crema tracking-wide">
+                    Your order has been placed successfully!
+                  </h4>
+                </div>
+              </div>
+
+              {/* Instruction */}
+              <p className="text-xs text-warm-beige/70 leading-relaxed">
+                When you arrive at Casa De Latte, please call us and mention your order so we can bring it to your car.
+              </p>
+
+              {/* Displayed phone number */}
+              <p className="text-[10px] uppercase tracking-widest text-warm-beige/40 font-bold">
+                Cafe Direct Line
+              </p>
+              <p className="font-serif text-lg font-bold text-crema tracking-wider">
+                {CAFE_PHONE}
+              </p>
+
+              {/* Call Cafe Button */}
+              <a
+                id="call-cafe-btn"
+                href={`tel:${CAFE_PHONE}`}
+                className="w-full bg-crema hover:bg-crema-light active:scale-95 text-matte-black py-3.5 px-6 rounded-xl font-bold flex items-center justify-center gap-2.5 transition-all duration-300 shadow-lg shadow-crema/15 text-sm"
+              >
+                <Phone size={16} />
+                Call Cafe
+              </a>
+            </motion.div>
 
             {/* Action Button */}
             <div className="text-center pt-4">
