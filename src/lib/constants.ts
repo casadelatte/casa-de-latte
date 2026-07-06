@@ -8,4 +8,4 @@
  * Do NOT use this constant for customer phone numbers, Firebase phone
  * authentication, OTP verification, or stored order phone numbers.
  */
-export const CAFE_PHONE = "+910000000000";
+export const CAFE_PHONE = "+9177046262";
