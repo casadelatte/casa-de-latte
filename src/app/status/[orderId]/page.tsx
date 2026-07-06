@@ -348,7 +348,7 @@ export default function OrderStatusPage() {
 
               {/* Instruction */}
               <p className="text-xs text-warm-beige/70 leading-relaxed">
-                When you arrive at Casa De Latte, please call us and mention your order so we can bring it to your car.
+                When you arrive at Casa De Latte, please call us and mention your order number so we can bring it to your car.
               </p>
 
               {/* Displayed phone number */}
