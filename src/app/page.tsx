@@ -334,7 +334,7 @@ function CustomerPortal() {
 
           <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full">
             <span className="text-xs font-bold tracking-widest text-crema uppercase flex items-center gap-1.5">
-              <span>🚗</span> Drive-In
+              Drive-In
             </span>
           </div>
         </div>
