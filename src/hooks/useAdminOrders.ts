@@ -185,8 +185,18 @@ export function useAdminOrders(options: {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "orders" },
         (payload) => {
-          const partial = mapRowToPartial(payload.new as Record<string, unknown>);
-          if (!partial.id) return;
+          const row = payload.new as Record<string, unknown>;
+          if (!row?.id) return;
+
+          // If status is absent from the payload (happens when REPLICA IDENTITY
+          // is not FULL — only the PK is included), fall back to a full fetch so
+          // we never apply a partial merge that leaves status stale.
+          if (row.status == null) {
+            void fetchAndMergeOrder(row.id as string);
+            return;
+          }
+
+          const partial = mapRowToPartial(row);
           setOrders((prev) =>
             prev.map((o) => (o.id === partial.id ? { ...o, ...partial } : o))
           );

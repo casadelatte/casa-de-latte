@@ -6,7 +6,7 @@ import FloatingBeans from "@/components/FloatingBeans";
 import GlowEffect from "@/components/GlowEffect";
 import CasaLogo from "@/components/CasaLogo";
 import LoadingScreen from "@/components/LoadingScreen";
-import { CheckCircle2, Home, CreditCard, Car, Phone } from "lucide-react";
+import { CheckCircle2, Home, CreditCard, Car, Phone, X } from "lucide-react";
 import { CAFE_PHONE } from "@/lib/constants";
 import { motion } from "framer-motion";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -24,7 +24,7 @@ interface OrderDetail {
   customerName: string;
   carPlate: string;
   carColor: string;
-  status: string; // PENDING, PREPARING, READY, COMPLETED, REJECTED
+  status: string; // PENDING, PREPARING, READY, COMPLETED, REJECTED, CANCELLED
   totalAmount: number;
   createdAt: string;
   items: OrderItem[];
@@ -37,6 +37,7 @@ export default function OrderStatusPage() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     if (!orderId) return;
@@ -53,7 +54,7 @@ export default function OrderStatusPage() {
         setOrder(data);
         setLoading(false);
         // Clear persisted order ID once the order is in a terminal state
-        if (data.status === "COMPLETED" || data.status === "REJECTED") {
+        if (data.status === "COMPLETED" || data.status === "REJECTED" || data.status === "CANCELLED") {
           try { localStorage.removeItem("currentOrderId"); } catch { /* ignore */ }
         }
       } catch (err: unknown) {
@@ -88,6 +89,32 @@ export default function OrderStatusPage() {
       supabase.removeChannel(channel);
     };
   }, [orderId]);
+
+  // ── Customer cancel handler ─────────────────────────────────────────────────
+  const handleCancel = async () => {
+    if (!order || order.status !== "PENDING") return;
+    const confirmed = window.confirm(
+      "Are you sure you want to cancel this order? This action cannot be undone."
+    );
+    if (!confirmed) return;
+
+    setIsCancelling(true);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/cancel`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Could not cancel order. Please try again.");
+        return;
+      }
+      // Update local state immediately; real-time will sync the admin dashboard
+      setOrder((prev) => prev ? { ...prev, status: "CANCELLED" } : prev);
+      try { localStorage.removeItem("currentOrderId"); } catch { /* ignore */ }
+    } catch {
+      alert("Network error. Please check your connection and try again.");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   if (loading) {
     return <LoadingScreen message="Connecting to baristas..." />;
@@ -125,6 +152,8 @@ export default function OrderStatusPage() {
 
   const currentIndex = getStatusIndex(order.status);
   const isRejected = order.status === "REJECTED";
+  const isCancelled = order.status === "CANCELLED";
+  const isTerminal = isRejected || isCancelled;
 
   return (
     <div className="relative min-h-screen bg-matte-black text-cream-light py-16 px-4 md:px-6 overflow-hidden">
@@ -149,19 +178,23 @@ export default function OrderStatusPage() {
           </span>
         </div>
 
-        {/* REJECTED State */}
-        {isRejected ? (
+        {/* REJECTED / CANCELLED States */}
+        {isTerminal ? (
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className="glass rounded-3xl p-8 border border-red-500/30 text-center space-y-4"
           >
             <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto border border-red-500/30">
-              <span className="text-3xl">✕</span>
+              <X className="text-red-400" size={32} />
             </div>
-            <h3 className="font-serif text-xl font-bold text-red-400">Order Rejected</h3>
+            <h3 className="font-serif text-xl font-bold text-red-400">
+              {isCancelled ? "Order Cancelled" : "Order Rejected"}
+            </h3>
             <p className="text-xs text-warm-beige/60 leading-relaxed">
-              We apologize — your order could not be processed at this time. Please visit the counter or place a new order.
+              {isCancelled
+                ? "Your order has been cancelled. We hope to serve you again soon!"
+                : "We apologize — your order could not be processed at this time. Please visit the counter or place a new order."}
             </p>
             <button
               onClick={() => router.push("/")}
@@ -276,6 +309,41 @@ export default function OrderStatusPage() {
                 </div>
               </div>
             </div>
+
+            {/* Cancel Order — shown only while PENDING */}
+            {order.status === "PENDING" && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.35 }}
+                className="glass rounded-3xl p-5 border border-red-500/20 flex items-center justify-between gap-4"
+              >
+                <div>
+                  <p className="text-xs font-bold text-warm-beige/80">Changed your mind?</p>
+                  <p className="text-[10px] text-warm-beige/40 mt-0.5 leading-relaxed">
+                    You can cancel while your order is still pending.
+                  </p>
+                </div>
+                <button
+                  id="cancel-order-btn"
+                  onClick={handleCancel}
+                  disabled={isCancelling}
+                  className="shrink-0 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 text-red-400 font-bold text-xs uppercase tracking-widest px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {isCancelling ? (
+                    <>
+                      <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Cancelling…
+                    </>
+                  ) : (
+                    <><X size={13} /> Cancel Order</>
+                  )}
+                </button>
+              </motion.div>
+            )}
 
             {/* PAY & PICKUP CALLOUT */}
             {order.status === "READY" && (

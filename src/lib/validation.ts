@@ -113,7 +113,7 @@ export type CreateOrderInput = z.infer<typeof CreateOrderSchema>;
 // ─── Update order status (PATCH /api/orders/[id]) ────────────────────────────
 
 /** Allowlisted statuses that staff may set. */
-export const ALLOWED_STATUSES = ["PENDING", "PREPARING", "COMPLETED", "REJECTED"] as const;
+export const ALLOWED_STATUSES = ["PENDING", "PREPARING", "COMPLETED", "REJECTED", "CANCELLED"] as const;
 
 export const PatchOrderSchema = z
   .object({

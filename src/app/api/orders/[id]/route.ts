@@ -102,7 +102,24 @@ export async function PATCH(
     const { id } = await params;
     const { status } = result.data;
 
-    // 5. Update order status
+    // 5. Terminal-state guard — CANCELLED and COMPLETED orders are immutable
+    const { data: existing, error: existingErr } = await supabase
+      .from("orders")
+      .select("status")
+      .eq("id", id)
+      .single();
+    if (existingErr || !existing) {
+      return NextResponse.json({ error: "Order not found." }, { status: 404 });
+    }
+    const TERMINAL_STATUSES = ["CANCELLED", "COMPLETED"] as const;
+    if (TERMINAL_STATUSES.includes(existing.status as (typeof TERMINAL_STATUSES)[number])) {
+      return NextResponse.json(
+        { error: `Order is already ${existing.status.toLowerCase()} and cannot be modified.` },
+        { status: 409 }
+      );
+    }
+
+    // 6. Update order status
     const { data: updated, error: updErr } = await supabase
       .from("orders")
       .update({ status })

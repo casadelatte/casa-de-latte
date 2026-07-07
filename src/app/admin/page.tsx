@@ -186,6 +186,10 @@ export default function AdminDashboard() {
   }, []);
 
   const handleUpdateStatus = async (id: string, newStatus: string, openReceiptAfter = false) => {
+    // Terminal-state guard — CANCELLED and COMPLETED orders are immutable on the client too
+    const current = orders.find((o) => o.id === id);
+    if (current?.status === "CANCELLED" || current?.status === "COMPLETED") return;
+
     try {
       const response = await fetch(`/api/orders/${id}`, {
         method: "PATCH",
@@ -238,7 +242,7 @@ export default function AdminDashboard() {
   // Analytics
   const totalRevenue = orders.filter((o) => o.status === "COMPLETED").reduce((acc, curr) => acc + curr.totalAmount, 0);
   const activeOrdersCount = orders.filter((o) => o.status === "PENDING" || o.status === "PREPARING").length;
-  const finishedOrdersCount = orders.filter((o) => o.status === "COMPLETED" || o.status === "REJECTED").length;
+  const finishedOrdersCount = orders.filter((o) => o.status === "COMPLETED" || o.status === "REJECTED" || o.status === "CANCELLED").length;
 
   const getMostOrderedItems = () => {
     const counts: { [key: string]: number } = {};
@@ -252,6 +256,7 @@ export default function AdminDashboard() {
   const preparingOrders = orders.filter((o) => o.status === "PREPARING");
   const completedLive = orders.filter((o) => o.status === "COMPLETED").slice(0, 15);
   const rejectedRecent = orders.filter((o) => o.status === "REJECTED").slice(0, 5);
+  const cancelledRecent = orders.filter((o) => o.status === "CANCELLED").slice(0, 5);
 
   const renderOrderCard = (order: Order, accentColor: string, actions: React.ReactNode) => (
     <motion.div
@@ -591,6 +596,33 @@ export default function AdminDashboard() {
                           type="button"
                           onClick={() => showReceiptPreview(order)}
                           className="text-red-300/80"
+                          title="View receipt"
+                        >
+                          <FileText size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {cancelledRecent.length > 0 && (
+                <div className="pt-3 border-t border-white/5 space-y-2">
+                  <span className="text-[9px] uppercase tracking-widest text-orange-400/80 font-bold flex items-center gap-1">
+                    <ClipboardList size={10} /> Customer cancelled
+                  </span>
+                  {cancelledRecent.map((order) => (
+                    <div
+                      key={order.id}
+                      className="rounded-xl p-3 border border-orange-500/15 bg-orange-500/5 opacity-70 text-xs"
+                    >
+                      <div className="flex justify-between">
+                        <span className="font-bold text-warm-beige/70">
+                          #{order.orderNumber?.toString().padStart(3, "0")} · {order.customerName}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => showReceiptPreview(order)}
+                          className="text-orange-300/80"
                           title="View receipt"
                         >
                           <FileText size={11} />
