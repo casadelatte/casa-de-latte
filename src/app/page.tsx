@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense, useCallback, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import FloatingBeans from "@/components/FloatingBeans";
 import GlowEffect from "@/components/GlowEffect";
@@ -36,6 +36,7 @@ import {
   Sun,
   Plus,
   ArrowDown,
+  Car,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -58,6 +59,7 @@ const IconMap: { [key: string]: any } = {
 
 function CustomerPortal() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState("");
   const [activeItem, setActiveItem] = useState<MenuItem | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -67,6 +69,7 @@ function CustomerPortal() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [orderingOpen, setOrderingOpen] = useState(true);
   const [lateNight, setLateNight] = useState(false);
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const tick = () => {
@@ -190,6 +193,30 @@ function CustomerPortal() {
     }
   }, [searchParams]);
 
+  // Check for a persisted active order and validate its status
+  useEffect(() => {
+    const ACTIVE_STATUSES = new Set(["PENDING", "ACCEPTED", "PREPARING", "READY"]);
+    const saved = localStorage.getItem("currentOrderId");
+    if (!saved) return;
+
+    // Verify the order is still in an active state before showing the banner
+    fetch(`/api/orders/${saved}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && ACTIVE_STATUSES.has(data.status)) {
+          setActiveOrderId(saved);
+        } else {
+          // Order is terminal or not found — clean up
+          localStorage.removeItem("currentOrderId");
+          setActiveOrderId(null);
+        }
+      })
+      .catch(() => {
+        // Network error — optimistically show the button; status page will clean up
+        setActiveOrderId(saved);
+      });
+  }, []);
+
 
 
   // Scroll detection to fade navbar in/out
@@ -283,6 +310,20 @@ function CustomerPortal() {
             </div>
 
             <div className="flex items-center gap-4">
+              {activeOrderId && (
+                <motion.button
+                  onClick={() => router.push(`/status/${activeOrderId}`)}
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="relative bg-crema/10 border border-crema/30 hover:border-crema/60 hover:bg-crema/15 text-crema font-bold px-4 py-2 rounded-xl flex items-center gap-2 text-xs transition-all duration-300"
+                >
+                  <span className="flex h-1.5 w-1.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-crema opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-crema" />
+                  </span>
+                  View Current Order
+                </motion.button>
+              )}
               <button
                 onClick={() => setIsCartOpen(true)}
                 className="relative bg-white/5 border border-white/10 hover:border-crema/40 text-cream-light font-bold px-4 py-2 rounded-xl flex items-center gap-2 text-xs transition duration-300"
@@ -381,16 +422,40 @@ function CustomerPortal() {
           </motion.p>
 
           {/* Magnetic-styled Button */}
-          <motion.button
-            type="button"
-            onClick={scrollToMenu}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.98 }}
-            className="bg-crema hover:bg-crema-light text-matte-black font-bold text-sm uppercase tracking-[0.2em] px-8 py-4 rounded-xl shadow-2xl shadow-crema/20 flex items-center gap-2 border border-crema-gold/10 transition-colors duration-300"
-          >
-            <span>Order From Your Car</span>
-            <ArrowDown size={14} className="animate-bounce" />
-          </motion.button>
+          <div className="flex flex-col items-center gap-3">
+            <motion.button
+              type="button"
+              onClick={scrollToMenu}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.98 }}
+              className="bg-crema hover:bg-crema-light text-matte-black font-bold text-sm uppercase tracking-[0.2em] px-8 py-4 rounded-xl shadow-2xl shadow-crema/20 flex items-center gap-2 border border-crema-gold/10 transition-colors duration-300"
+            >
+              <span>Order From Your Car</span>
+              <ArrowDown size={14} className="animate-bounce" />
+            </motion.button>
+
+            {/* Persistent order tracking banner — shown only when an active order exists */}
+            {activeOrderId && (
+              <motion.button
+                id="view-current-order-btn"
+                type="button"
+                onClick={() => router.push(`/status/${activeOrderId}`)}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="flex items-center gap-2.5 bg-white/5 border border-crema/30 hover:border-crema/60 hover:bg-white/10 text-crema font-bold text-xs uppercase tracking-[0.18em] px-6 py-3 rounded-xl transition-all duration-300 shadow-lg shadow-crema/5"
+              >
+                <span className="flex h-2 w-2 relative shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-crema opacity-70" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-crema" />
+                </span>
+                <Car size={13} />
+                View Current Order
+              </motion.button>
+            )}
+          </div>
         </div>
 
         {/* Hero Footer */}

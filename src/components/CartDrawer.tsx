@@ -203,6 +203,8 @@ export default function CartDrawer({
 
       setCartItems([]);
       localStorage.removeItem("casa_cart");
+      // Persist order ID so customer can resume tracking even after leaving the page
+      localStorage.setItem("currentOrderId", order.id);
       pendingOrderRef.current = null;
 
       const confetti = (await import("canvas-confetti")).default;

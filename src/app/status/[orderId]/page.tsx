@@ -52,6 +52,10 @@ export default function OrderStatusPage() {
         const data = await response.json();
         setOrder(data);
         setLoading(false);
+        // Clear persisted order ID once the order is in a terminal state
+        if (data.status === "COMPLETED" || data.status === "REJECTED") {
+          try { localStorage.removeItem("currentOrderId"); } catch { /* ignore */ }
+        }
       } catch (err: unknown) {
         console.error(err);
         setError(err instanceof Error ? err.message : "Could not fetch order status.");
